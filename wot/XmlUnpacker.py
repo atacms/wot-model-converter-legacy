@@ -1,13 +1,12 @@
 from struct import unpack
 from xml.etree import ElementTree as ET
 import base64
+
 class XmlUnpacker:
 	PACKED_HEADER = 0x62a14e45
 	stream = None
 	dict = []
 	debug = False
-	def __init__(self):
-		pass
 
 	def read(self, stream):
 		self.stream = stream
@@ -56,25 +55,38 @@ class XmlUnpacker:
 		length = descriptor['end'] - offset
 		if descriptor['type'] == 0:
 			self.readElement(element)
+
 		elif descriptor['type'] == 1:
-			element.text = str(self.readString(length))
+			element.text = self.readString(length)
+
 		elif descriptor['type'] == 2:
 			element.text = str(self.readNumber(length))
+
 		elif descriptor['type'] == 3:
-			element.text = str(self.readFloat(length))
+			float_str = self.readFloat(length)
+			strData = float_str.split(' ')
+			if (len(strData) == 12):
+				for i in [0, 3, 6, 9]:
+					row = ET.SubElement(element, 'row{}'.format(i//3))
+					row.text = '{} {} {}'.format( *strData[i:i+3] )
+			else:
+				element.text = float_str
+
 		elif descriptor['type'] == 4:
-			element.text = str(self.readBoolean(length))
+			element.text = 'true' if self.readBoolean(length) else 'false'
+
 		elif descriptor['type'] == 5:
-			element.text = str(self.readBase64(length))
+			element.text = self.readBase64(length)
+
 		else:
-			raise Exception('Unknown element type: ' + str(descriptor['type']))
+			raise Exception('Unknown element type: %s' + descriptor['type'])
+
 		return descriptor['end']
 
 	def readString(self, length):
-		if length == 0:
-			return ''
-		else:
+		if length:
 			return self.stream.read(length).decode('UTF-8')
+		return ''
 
 	def readNumber(self, length):
 		if length == 0:
@@ -93,12 +105,12 @@ class XmlUnpacker:
 				raise Exception('Uknown number length')
 
 	def readFloat(self, length):
-		n = int(length / 4)
+		n = length // 4
 		res = ''
 		for i in range(0, n):
 			if i != 0:
-				res = res + ' '
-			res = res + str(unpack('f', self.stream.read(4))[0])
+				res += ' '
+			res += str(unpack('f', self.stream.read(4))[0])
 		return res
 
 	def readBoolean(self, length):
@@ -133,7 +145,7 @@ class XmlUnpacker:
 			c = self.stream.read(1)
 			if ord(c) == 0:
 				break
-			str = str + c.decode('UTF-8', errors='ignore')
+			str += c.decode('UTF-8', errors='ignore')
 		return str
 
 	def isPacked(self):
@@ -143,4 +155,3 @@ class XmlUnpacker:
 			return False
 		else:
 			return True
-
