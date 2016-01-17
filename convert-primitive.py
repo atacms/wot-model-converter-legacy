@@ -293,8 +293,7 @@ def main(filename_primitive, args):
 			mainFP.seek(section_indicies['position'] + offset)
 
 			pGroups = []
-			i = 0
-			while i < indicies_groups:
+			for i in range(indicies_groups):
 				pGroups.append({
 					'id': i,
 					'startIndex': unpack("I", mainFP.read(4))[0],
@@ -302,8 +301,6 @@ def main(filename_primitive, args):
 					'startVertex': unpack("I", mainFP.read(4))[0],
 					'nVertices': unpack("I", mainFP.read(4))[0]
 				})
-
-				i += 1
 
 			"""
 			@TODO:
@@ -395,7 +392,7 @@ def main(filename_primitive, args):
 					elif format_string == 'set3/xyznuviiiwwtbpc':
 						# bone id for weight1:
 						vert.index_1 = unpack('B', mainFP.read(1))[0]//3
-						# bone id for weight3:
+						# bone id for weight2:
 						vert.index_2 = unpack('B', mainFP.read(1))[0]//3
 						# bone id for weight3:
 						vert.index_3 = unpack('B', mainFP.read(1))[0]//3
@@ -419,7 +416,7 @@ def main(filename_primitive, args):
 					elif vertices_subname.endswith('xyznuviiiwwtb'):
 						# bone id for weight1:
 						vert.index_1 = unpack('B', mainFP.read(1))[0]//3
-						# bone id for weight3:
+						# bone id for weight2:
 						vert.index_2 = unpack('B', mainFP.read(1))[0]//3
 						# bone id for weight3:
 						vert.index_3 = unpack('B', mainFP.read(1))[0]//3
@@ -445,15 +442,12 @@ def main(filename_primitive, args):
 				group['indicies'] = []
 
 				for _ in range(group['nPrimitives']):
-					p1 = None
-					p2 = None
-					p3 = None
-
-					if ind_scale != 2:
+					if ind_scale == 4:
 						p2 = unpack('I', mainFP.read(4))[0]
 						p1 = unpack('I', mainFP.read(4))[0]
 						p3 = unpack('I', mainFP.read(4))[0]
-					else:
+
+					elif ind_scale == 2:
 						p2 = unpack('H', mainFP.read(2))[0]
 						p1 = unpack('H', mainFP.read(2))[0]
 						p3 = unpack('H', mainFP.read(2))[0]
