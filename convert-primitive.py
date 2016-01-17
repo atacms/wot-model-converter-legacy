@@ -1,4 +1,4 @@
-import pdb
+#import pdb
 
 import xml.etree.ElementTree as ET
 import sys
@@ -219,7 +219,7 @@ def main(filename_primitive, args):
 
 			if 'vertices' in section_name:
 				sub_groups += 1
-#				print 'sub_groups = '+str(sub_groups)
+#				print('sub_groups = %s' % sub_groups)
 
 			if 'colour' in section_name:
 				has_color = True
@@ -287,7 +287,7 @@ def main(filename_primitive, args):
 			indicies_count = unpack("I", mainFP.read(4))[0]
 			indicies_groups = unpack("H", mainFP.read(2))[0]
 
-			#print "subname", indicies_subname, "count", indicies_count, "groups", indicies_groups
+			#print("subname=%s; count=%s; groups=%s;" % (indicies_subname, indicies_count, indicies_groups))
 
 			offset = indicies_count * ind_scale + 72
 			mainFP.seek(section_indicies['position'] + offset)
@@ -357,7 +357,6 @@ def main(filename_primitive, args):
 
 			big_l = indicies_groups
 			k = 0
-			i = 0
 
 			while k < big_l:
 				index = 0
@@ -367,9 +366,7 @@ def main(filename_primitive, args):
 				groups.append(pGroups[index])
 				groups[k]['vertices'] = []
 
-				pos = groups[k]['nVertices']
-				v = 0
-				while v < pos:
+				for _ in range(groups[k]['nVertices']):
 					vert = Vertice()
 #					pdb.set_trace()
 					vert.x = unpack('f', mainFP.read(4))[0] * scale_x + transform_x
@@ -383,6 +380,8 @@ def main(filename_primitive, args):
 
 
 					if format_string == 'set3/xyznuvpc':pass
+
+					elif vertices_subname.endswith('xyznuv'):pass
 
 					elif format_string == 'set3/xyznuvtbpc':
 						vert.t = unpack('I', mainFP.read(4))[0]
@@ -417,7 +416,7 @@ def main(filename_primitive, args):
 #							pdb.set_trace()
 
 					#old format skinned
-					elif "xyznuviiiwwtb" in vertices_subname:
+					elif vertices_subname.endswith('xyznuviiiwwtb'):
 						# bone id for weight1:
 						vert.index_1 = unpack('B', mainFP.read(1))[0]//3
 						# bone id for weight3:
@@ -438,9 +437,6 @@ def main(filename_primitive, args):
 
 					groups[k]['vertices'].append(vert)
 
-					v += 1
-					i += 1
-
 				k += 1
 
 			for group in groups:
@@ -448,9 +444,7 @@ def main(filename_primitive, args):
 
 				group['indicies'] = []
 
-				i = 0
-				cnt = group['nPrimitives']
-				while i < cnt:
+				for _ in range(group['nPrimitives']):
 					p1 = None
 					p2 = None
 					p3 = None
@@ -468,9 +462,7 @@ def main(filename_primitive, args):
 						'v1': p1,
 						'v2': p2,
 						'v3': p3
-					});
-
-					i += 1
+					})
 
 
 		mtlc = ""
@@ -557,15 +549,11 @@ def main(filename_primitive, args):
 
 					#skinned primitives need to invert face vertex sequence
 					if flgSkinned:
-						lx = l1
-						l1 = l3
-						l3 = lx
-					else:
-						#if mirror is introduced, non-skinned model also need to invert vertex sequence.
-						if MIRROR_ENABLED:
-							lx = l1
-							l1 = l3
-							l3 = lx
+						l1, l3 = l3, l1
+
+					#if mirror is introduced, non-skinned model also need to invert vertex sequence.
+					elif MIRROR_ENABLED:
+						l1, l3 = l3, l1
 
 					if format == 0:
 						objc += "f %d/%d/%d %d/%d/%d %d/%d/%d\n" % (l3,l3,l3,l2,l2,l2,l1,l1,l1)

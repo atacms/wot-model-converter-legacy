@@ -6,7 +6,6 @@ class XmlUnpacker:
 	PACKED_HEADER = 0x62a14e45
 	stream = None
 	dict = []
-	debug = False
 
 	def read(self, stream):
 		self.stream = stream
@@ -21,13 +20,13 @@ class XmlUnpacker:
 			tree = ET.fromstring(stream.read().decode('UTF-8'))
 			return tree
 
-	def readElement(self, base):
+	def readElement(self, _base):
 		children_count = unpack('<H', self.stream.read(2))[0]
 		descriptor = self.readDataDescriptor()
 		children = self.readElementDescriptors(children_count)
-		offset = self.readData(base, 0, descriptor)
+		offset = self.readData(_base, 0, descriptor)
 		for child in children:
-			node = ET.SubElement(base, self.dict[child['name_index']])
+			node = ET.SubElement(_base, self.dict[child['name_index']])
 			offset = self.readData(node, offset, child['descriptor'])
 
 	def readDataDescriptor(self):
@@ -79,7 +78,7 @@ class XmlUnpacker:
 			element.text = self.readBase64(length)
 
 		else:
-			raise Exception('Unknown element type: %s' + descriptor['type'])
+			raise Exception('Unknown element type: %s' % descriptor['type'])
 
 		return descriptor['end']
 
@@ -115,13 +114,12 @@ class XmlUnpacker:
 
 	def readBoolean(self, length):
 		if length == 0:
-			return 0
+			return False
 		elif length == 1:
 			b = unpack('B', self.stream.read(1))[0]
 			if b == 1:
-				return 1
-			else:
-				return 0
+				return True
+			return False
 		else:
 			raise Exception('Boolean with wrong length.')
 
@@ -140,18 +138,17 @@ class XmlUnpacker:
 		return dict
 
 	def readASCIIZ(self):
-		str = ''
+		_str = ''
 		while True:
 			c = self.stream.read(1)
 			if ord(c) == 0:
 				break
-			str += c.decode('UTF-8', errors='ignore')
-		return str
+			_str += c.decode('UTF-8', errors='ignore')
+		return _str
 
 	def isPacked(self):
 		self.stream.seek(0)
 		header = unpack('I', self.stream.read(4))[0]
 		if header != self.PACKED_HEADER:
 			return False
-		else:
-			return True
+		return True
