@@ -1,3 +1,7 @@
+#############
+## testing bigworld model files
+#############
+
 *.model
 *.primitives
 *.primitives_processed
@@ -10,6 +14,15 @@
 *.max
 *.bat
 *.py[cod]
+*.rar
+*.txt
 
+#############
+## Windows detritus
+#############
+
+# Windows image file caches
 Thumbs.db
+
+# Folder config file
 Desktop.ini
