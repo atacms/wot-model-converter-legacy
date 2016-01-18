@@ -1,11 +1,13 @@
 from struct import unpack
 from xml.etree import ElementTree as ET
 import base64
-
 class XmlUnpacker:
 	PACKED_HEADER = 0x62a14e45
 	stream = None
 	dict = []
+	debug = False
+	def __init__(self):
+		pass
 
 	def read(self, stream):
 		self.stream = stream
@@ -20,13 +22,13 @@ class XmlUnpacker:
 			tree = ET.fromstring(stream.read().decode('UTF-8'))
 			return tree
 
-	def readElement(self, _base):
+	def readElement(self, base):
 		children_count = unpack('<H', self.stream.read(2))[0]
 		descriptor = self.readDataDescriptor()
 		children = self.readElementDescriptors(children_count)
-		offset = self.readData(_base, 0, descriptor)
+		offset = self.readData(base, 0, descriptor)
 		for child in children:
-			node = ET.SubElement(_base, self.dict[child['name_index']])
+			node = ET.SubElement(base, self.dict[child['name_index']])
 			offset = self.readData(node, offset, child['descriptor'])
 
 	def readDataDescriptor(self):
@@ -54,38 +56,25 @@ class XmlUnpacker:
 		length = descriptor['end'] - offset
 		if descriptor['type'] == 0:
 			self.readElement(element)
-
 		elif descriptor['type'] == 1:
-			element.text = self.readString(length)
-
+			element.text = str(self.readString(length))
 		elif descriptor['type'] == 2:
 			element.text = str(self.readNumber(length))
-
 		elif descriptor['type'] == 3:
-			float_str = self.readFloat(length)
-			strData = float_str.split(' ')
-			if (len(strData) == 12):
-				for i in [0, 3, 6, 9]:
-					row = ET.SubElement(element, 'row{}'.format(i//3))
-					row.text = '{} {} {}'.format( *strData[i:i+3] )
-			else:
-				element.text = float_str
-
+			element.text = str(self.readFloat(length))
 		elif descriptor['type'] == 4:
-			element.text = 'true' if self.readBoolean(length) else 'false'
-
+			element.text = str(self.readBoolean(length))
 		elif descriptor['type'] == 5:
-			element.text = self.readBase64(length)
-
+			element.text = str(self.readBase64(length))
 		else:
-			raise Exception('Unknown element type: %s' % descriptor['type'])
-
+			raise Exception('Unknown element type: ' + str(descriptor['type']))
 		return descriptor['end']
 
 	def readString(self, length):
-		if length:
+		if length == 0:
+			return ''
+		else:
 			return self.stream.read(length).decode('UTF-8')
-		return ''
 
 	def readNumber(self, length):
 		if length == 0:
@@ -104,22 +93,23 @@ class XmlUnpacker:
 				raise Exception('Uknown number length')
 
 	def readFloat(self, length):
-		n = length // 4
+		n = int(length / 4)
 		res = ''
 		for i in range(0, n):
 			if i != 0:
-				res += ' '
-			res += str(unpack('f', self.stream.read(4))[0])
+				res = res + ' '
+			res = res + str(unpack('f', self.stream.read(4))[0])
 		return res
 
 	def readBoolean(self, length):
 		if length == 0:
-			return False
+			return 0
 		elif length == 1:
 			b = unpack('B', self.stream.read(1))[0]
 			if b == 1:
-				return True
-			return False
+				return 1
+			else:
+				return 0
 		else:
 			raise Exception('Boolean with wrong length.')
 
@@ -138,17 +128,19 @@ class XmlUnpacker:
 		return dict
 
 	def readASCIIZ(self):
-		_str = ''
+		str = ''
 		while True:
 			c = self.stream.read(1)
 			if ord(c) == 0:
 				break
-			_str += c.decode('UTF-8', errors='ignore')
-		return _str
+			str = str + c.decode('UTF-8', errors='ignore')
+		return str
 
 	def isPacked(self):
 		self.stream.seek(0)
 		header = unpack('I', self.stream.read(4))[0]
 		if header != self.PACKED_HEADER:
 			return False
-		return True
+		else:
+			return True
+
