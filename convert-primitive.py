@@ -166,20 +166,21 @@ def main(filename_primitive, args):
 	visual_textures = []
 	for renderSet in root.findall("renderSet"):
 		visual_name_list.append([
-			renderSet.find("geometry").find("vertices").text,
-			renderSet.find("geometry").find("primitive").text
+			renderSet.find("geometry").find("vertices").text.strip(),
+			renderSet.find("geometry").find("primitive").text.strip()
 		])
 
 		group_textures = {}
 		for item in renderSet.find("geometry").findall("primitiveGroup"):
 			textures = {
 				"diffuse": None,
-				"ident": item.find("material").find("identifier").text
+				"ident": item.find("material").find("identifier").text.strip()
 			}
 			for prop in item.find("material").findall("property"):
 				if prop.text.strip() == "diffuseMap":
 					textures['diffuse'] = prop.find("Texture").text.strip()
-			group_textures[item.text.strip()] = textures
+					break
+			group_textures[int(item.text.strip())] = textures
 		visual_textures.append(group_textures)
 
 	root = None
@@ -187,7 +188,7 @@ def main(filename_primitive, args):
 	with open(filename_primitive, 'rb') as mainFP:
 		mainFP.seek(-4, 2)
 		table_start = unpack('i', mainFP.read(4))[0]
-		mainFP.seek(- 4 - table_start, 2)
+		mainFP.seek(-4 - table_start, 2)
 		sections = {}
 
 		has_color = False
@@ -254,8 +255,8 @@ def main(filename_primitive, args):
 			groups = []
 			subgroups.append(groups)
 
-			name_vertices = visual_name_list[(sg - sub_groups)][0].strip()
-			name_indicies = visual_name_list[(sg - sub_groups)][1].strip()
+			name_vertices = visual_name_list[(sg - sub_groups)][0]
+			name_indicies = visual_name_list[(sg - sub_groups)][1]
 
 			ind_scale = 2
 
@@ -306,13 +307,13 @@ def main(filename_primitive, args):
 			@TODO:
 			if has_uv2:
 				mainFP.seek(sections[uv2_section]['position'])
-				uv2_subname = mainFP.read(64).split(b'\x00')[0].decode('utf-8')
+				uv2_subname = mainFP.read(64).split(b'\x00')[0].decode('utf-8', errors='ignore')
 
 				uv2_format = ''
 				uv2_list = []
 
 				if 'BPVS' in uv2_subname:
-					self.__pfile.read(4)
+					mainFP.read(4)
 					uv2_format = mainFP.read(64).split(b'\x00')[0].decode('utf-8')
 
 				uv2_vert_count = unpack('I', mainFP.read(4))[0]
@@ -477,8 +478,8 @@ def main(filename_primitive, args):
 				material_name = "Material_%d_%d" % (sub_index, group['id'])
 				object_name = "Group_%d_%d" % (sub_index, group['id'])
 
-				if str(group['id']) in groups_textures:
-					textures = groups_textures[str(group['id'])]
+				if groups_textures.get(group['id']):
+					textures = groups_textures[group['id']]
 				else:
 					textures = None
 
@@ -498,14 +499,15 @@ def main(filename_primitive, args):
 					mtlc += "\tKd 0.3 0.3 0.3\n"
 					mtlc += "\tKs 0.4 0.4 0.4\n"
 					mtlc += "\tKe 0.0 0.0 0.0\n"
-					if textures != None and textures['diffuse'] != None and len(textures['diffuse']) > 0:
-						mtlc += "\tmap_Kd " + textures_path + textures['diffuse'] + "\n"
+					if textures:
+						if textures.get('diffuse'):
+							mtlc += "\tmap_Kd %s%s\n" % (textures_path, textures['diffuse'])
 
 #				objc += "o %s\n" % object_name
-				objc += "g %s|%s\n" % (object_name_print,object_name)
+				objc += "g %s|%s\n" % (object_name_print, object_name)
 
 				for vertice in group['vertices']:
-					objc += "v %f %f %f\n" % (vertice.x,vertice.y,vertice.z)
+					objc += "v %f %f %f\n" % (vertice.x, vertice.y, vertice.z)
 
 				if output_vn:
 					x_cnt = 1
@@ -515,9 +517,11 @@ def main(filename_primitive, args):
 							n = unpackNormal_tag3(vertice.n)
 						else:
 							n = unpackNormal(vertice.n)
+
 						if MIRROR_ENABLED and not flgSkinned:
 							n['x'] = -n['x']
-						objc += "vn %f %f %f\n" % (n['x'],n['y'],n['z'])
+
+						objc += "vn %f %f %f\n" % (n['x'], n['y'], n['z'])
 						x_cnt += 1
 
 				if output_vt:
@@ -575,22 +579,22 @@ def main(filename_primitive, args):
 
 if __name__ == '__main__':
 	import argparse
-	parser = argparse.ArgumentParser(description='Converts BigWorld primitives file to obj.')
-	parser.add_argument('input', help='primitives file path')
-	parser.add_argument('-v','--visual', dest='visual', help='visual file path')
-	parser.add_argument('-o','--obj', dest='obj', help='result obj path')
-	parser.add_argument('-m','--mtl', dest='mtl', help='result mtl path')
-	parser.add_argument('-t','-t', dest='textures', help='path to textures')
-	parser.add_argument('-sx','--scalex', dest='scalex', help='X scale')
-	parser.add_argument('-sy','--scaley', dest='scaley', help='Y scale')
-	parser.add_argument('-sz','--scalez', dest='scalez', help='Z scale')
-	parser.add_argument('-tx','--transx', dest='transx', help='X transform')
-	parser.add_argument('-ty','--transy', dest='transy', help='Y transform')
-	parser.add_argument('-tz','--transz', dest='transz', help='Z transform')
-	parser.add_argument('-c','--compress', dest='compress', action='store_true', help='Compress output using zlib')
-	parser.add_argument('-nm','--nomtl', dest='no_mtl', help='don\'t output material', action='store_true')
-	parser.add_argument('-nvt','--novt', dest='no_vt', help='don\'t output UV coordinates', action='store_true')
-	parser.add_argument('-nvn','--novn', dest='no_vn', help='don\'t output normals', action='store_true')
+	parser = argparse.ArgumentParser(description = 'Converts BigWorld primitives file to obj.')
+	parser.add_argument('input', help = 'primitives file path')
+	parser.add_argument('-v',    '--visual',   dest = 'visual',   help = 'visual file path')
+	parser.add_argument('-o',    '--obj',      dest = 'obj',      help = 'result obj path')
+	parser.add_argument('-m',    '--mtl',      dest = 'mtl',      help = 'result mtl path')
+	parser.add_argument('-t',    '-t',         dest = 'textures', help = 'path to textures')
+	parser.add_argument('-sx',   '--scalex',   dest = 'scalex',   help = 'X scale')
+	parser.add_argument('-sy',   '--scaley',   dest = 'scaley',   help = 'Y scale')
+	parser.add_argument('-sz',   '--scalez',   dest = 'scalez',   help = 'Z scale')
+	parser.add_argument('-tx',   '--transx',   dest = 'transx',   help = 'X transform')
+	parser.add_argument('-ty',   '--transy',   dest = 'transy',   help = 'Y transform')
+	parser.add_argument('-tz',   '--transz',   dest = 'transz',   help = 'Z transform')
+	parser.add_argument('-c',    '--compress', dest = 'compress', help = 'Compress output using zlib',   action = 'store_true')
+	parser.add_argument('-nm',   '--nomtl',    dest = 'no_mtl',   help = 'don\'t output material',       action = 'store_true')
+	parser.add_argument('-nvt',  '--novt',     dest = 'no_vt',    help = 'don\'t output UV coordinates', action = 'store_true')
+	parser.add_argument('-nvn',  '--novn',     dest = 'no_vn',    help = 'don\'t output normals',        action = 'store_true')
 
 	args = parser.parse_args()
 	for fname in glob(args.input):
