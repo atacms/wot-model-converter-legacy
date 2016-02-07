@@ -97,6 +97,7 @@ def unpackNormal_tag3(packed):
 			
 	
 parser = argparse.ArgumentParser(description='Converts BigWorld primitives file to obj.')
+parser.add_argument('-l','--legacy', dest='modeLegacy', action='store_true', help='convert primitives_processed back to the good old .primitive format')
 parser.add_argument('input', help='primitives file path')
 parser.add_argument('-v','--visual', dest='visual', help='visual file path')
 parser.add_argument('-o','--obj', dest='obj', help='result obj path')
@@ -280,7 +281,7 @@ def main(filename_primitive):
 		
 		subgroups = []
 		
-		while sub_groups > 0:
+		while sub_groups > 0:		# for each 'vertices' section
 			sub_groups -= 1
 			
 			groups = []
@@ -337,7 +338,6 @@ def main(filename_primitive):
 				})
 		
 				i += 1
-			
 			mainFP.seek(section_vertices['position'])
 		
 			vertices_subname = ''
@@ -351,7 +351,7 @@ def main(filename_primitive):
 				print('format_string=%s' % format_string)
 	#			pdb.set_trace()
 	
-			vertices_count = unpack("I", mainFP.read(4))[0]
+			vertices_count = unpack("I", mainFP.read(4))[0]		#total vertices count for current section, including all primitive groups in that section
 			
 			total_vertices = 0
 			for group in pGroups:
@@ -380,11 +380,8 @@ def main(filename_primitive):
 			i = 0
 			
 			while k < big_l:
-				index = 0
-				if not pl_flag:
-					index = k
 				
-				groups.append(pGroups[index])
+				groups.append(pGroups[k])
 				groups[k]['vertices'] = []
 				
 				pos = groups[k]['nVertices']
