@@ -116,6 +116,8 @@ parser.add_argument('-nvn','--novn', dest='no_vn', help='don\'t output normals',
 
 def main(filename_primitive):
 	flgSkinned = False
+	flgLegacy = False
+	flgVisualFound = True
 #	pdb.set_trace()
 	filename = os.path.splitext(filename_primitive)[0]
 	filename_visual	= '%s.visual' % filename
@@ -142,6 +144,8 @@ def main(filename_primitive):
 
 	textures_path = ''  #'../../../../../'
 
+	if args.modeLegacy:
+		flgLegacy = True
 	if args.visual != None:
 		filename_visual = args.visual
 	if args.obj != None:
@@ -174,50 +178,61 @@ def main(filename_primitive):
 		output_vt = False
 	if args.no_vn:
 		output_vn = False
-		
-	for fpath in (filename_primitive, filename_visual):
-		if not os.path.exists(fpath):
-			print("Failed to find %s" % fpath)
-			sys.exit(1)
+	
+	if not os.path.exists(filename_primitive):
+		print("Failed to find %s" % filename_primitive)
+		sys.exit(1)
+	if not os.path.exists(filename_visual):
+		print("Failed to find %s, material ignored" % filename_visual)
+		flgVisualFound = False
+		output_material = False
 
 
 #Unpack XML file
 #subprocess.call(["php", "xml-convert.php", filename_visual, filename_visual.replace('.visual', '.xml2')])
-	wot.unpackXml(filename_visual, filename_visual.replace('.visual', '.xml'))
-	
-	filename_visual = filename_visual.replace('.visual', '.xml')
-	
-	tree = ET.parse(filename_visual)
-	root = tree.getroot()
-	
-	geometry = root.find("renderSet").find("geometry")
-	
 	visual_name_list = []
 	visual_textures = []
-	for set in root.findall("renderSet"):
-		visual_name_list.append([
-			set.find("geometry").find("vertices").text,
-			set.find("geometry").find("primitive").text
-		])
+	if flgVisualFound:
+		wot.unpackXml(filename_visual, filename_visual.replace('.visual', '.xml'))
 	
-		group_textures = {}
-		for item in geometry.findall("primitiveGroup"):
-			textures = {
-				"diffuse": None,
-				"ident": item.find("material").find("identifier").text
-			}
-			for prop in item.find("material").findall("property"):
-				if prop.text.strip() == "diffuseMap":
-					textures['diffuse'] = prop.find("Texture").text.strip()
-			group_textures[item.text.strip()] = textures
-		visual_textures.append(group_textures)
-		
+		filename_visual = filename_visual.replace('.visual', '.xml')
+	
+		tree = ET.parse(filename_visual)
+		root = tree.getroot()
+	
+		geometry = root.find("renderSet").find("geometry")
+	
+		for set in root.findall("renderSet"):
+			visual_name_list.append([
+				set.find("geometry").find("vertices").text,
+				set.find("geometry").find("primitive").text
+			])
+	
+			group_textures = {}
+			for item in geometry.findall("primitiveGroup"):
+				textures = {
+					"diffuse": None,
+					"ident": item.find("material").find("identifier").text
+				}
+				for prop in item.find("material").findall("property"):
+					if prop.text.strip() == "diffuseMap":
+						textures['diffuse'] = prop.find("Texture").text.strip()
+				group_textures[item.text.strip()] = textures
+			visual_textures.append(group_textures)
+		os.unlink(filename_visual)
+
 	tree = None
 	root = None
 	
-	os.unlink(filename_visual)
 		
 	with open(filename_primitive, 'rb') as mainFP:
+		
+		#alternative routine to convert primitives_processed to old .primitives
+		if flgLegacy:
+			s
+
+
+
 		mainFP.seek(-4, 2)
 		table_start = unpack('i', mainFP.read(4))[0]
 		mainFP.seek(- 4 - table_start, 2)
@@ -229,9 +244,11 @@ def main(filename_primitive):
 		sub_groups = 0
 		uv2_section = ""
 
-#	pdb.set_trace()
 	
-		while True:
+		#
+		#read section table
+		#
+		while True:		
 			data = mainFP.read(4)
 			if data == None or len(data) != 4:
 				break
@@ -250,6 +267,13 @@ def main(filename_primitive):
 		
 			print("Section [ %s ]" % section_name)
 		
+			if not flgVisualFound:
+				if section_name not in visual_name_list:
+					if section_name.endswith('.vertices'):
+						objName = section_name.split('.vertices')[0]
+						visual_name_list.append([objName+'.vertices',
+																		 objName+'.indices'])
+			
 			if 'vertices' in section_name:
 				sub_groups += 1
 	#			print 'sub_groups = '+str(sub_groups)
@@ -269,13 +293,14 @@ def main(filename_primitive):
 			
 			position += section_size
 			if section_size % 4 > 0:
-				position += 4 - section_size % 4
+				position += 4 - section_size % 4	#dword alignment
 			
-			if section_name_length % 4 > 0:
+			if section_name_length % 4 > 0:			#dword alignment
 				mainFP.read(4 - section_name_length % 4)
 			
 			sections[section_name] = section
-			
+		
+
 		sg = sub_groups - 1
 		pl_flag = False
 		
@@ -293,16 +318,14 @@ def main(filename_primitive):
 			ind_scale = 2
 			stride = 32
 		
-#		pdb.set_trace()
 			if sub_groups > 0:
 				pl_flag = True
-#		pdb.set_trace()
 			section_vertices = sections[name_vertices]
 			section_indicies = sections[name_indicies]
 		
 			mainFP.seek(section_indicies['position'])
 		
-		#warning: tailing bytes after indicies_subname not parsed (just padding junks)
+			#warning: tailing bytes after indicies_subname not parsed (just padding junks)
 			indicies_subname = ''
 			i = 0
 			while i < 64:
@@ -466,17 +489,20 @@ def main(filename_primitive):
 		objc = ""
 			
 		objc += "#Exported by Python script\n";
-		objc += "#YOU SUCK\n\n"
+#		objc += "#YOU SUCK\n\n"
 		objc += "mtllib " + filename_mtl + "\n"
 		
 		mtlc += "#Exported by Python script\n";
-		mtlc += "#YOU SUCK\n\n"
+#		mtlc += "#YOU SUCK\n\n"
 	
 		total_vertices = 0
 	
 		sub_index = 0
 		for subgroup in subgroups:
-			groups_textures = visual_textures[sub_index]
+			if output_material:
+				groups_textures = visual_textures[sub_index]
+			else:
+				groups_textures = {}
 		
 			for group in subgroup:
 				material_name = "Material_%d_%d" % (sub_index, group['id'])
@@ -492,6 +518,10 @@ def main(filename_primitive):
 					object_name_print = textures['ident']
 				
 				if output_material:
+					if str(group['id']) in groups_textures:
+						textures = groups_textures[str(group['id'])]
+					else:
+						textures = None
 					mtlc += "\r\nnewmtl %s\n" % material_name
 					mtlc += "\tNs 20.0\n"
 					mtlc += "\tNi 1.0000\n"
