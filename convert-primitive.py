@@ -269,10 +269,14 @@ def main(filename_primitive):
 		
 			if not flgVisualFound:
 				if section_name not in visual_name_list:
-					if section_name.endswith('.vertices'):
-						objName = section_name.split('.vertices')[0]
-						visual_name_list.append([objName+'.vertices',
+					if 'vertices' in section_name:
+						if section_name.endswith('.vertices'):		#normal format with meshname 
+							objName = section_name.split('.vertices')[0]
+							visual_name_list.append([objName+'.vertices',
 																		 objName+'.indices'])
+						else:																			#rare format without meshname
+							visual_name_list.append([section_name,
+																		 section_name.replace('vertices','indices')])
 			
 			if 'vertices' in section_name:
 				sub_groups += 1
