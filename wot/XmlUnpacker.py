@@ -1,5 +1,6 @@
 from struct import unpack
 from xml.etree import ElementTree as ET
+import _xml
 import base64
 class XmlUnpacker:
 	PACKED_HEADER = 0x62a14e45

@@ -14,6 +14,20 @@ from glob import glob
 
 MIRROR_ENABLED = True		#mirror v and vn 
 
+#####################################################################
+# Primitive
+
+class Primitive:
+	renderSets = None
+	nodes = None
+	boundingBox = None
+
+	def __init__(self, renderSets, nodes, boundingBox):
+		self.renderSets = renderSets
+		self.nodes = nodes
+		self.boundingBox = boundingBox
+
+
 class Vertice:
 	def __init__(self):
 		self.bn = None
@@ -193,9 +207,9 @@ def main(filename_primitive):
 	visual_name_list = []
 	visual_textures = []
 	if flgVisualFound:
-		wot.unpackXml(filename_visual, filename_visual.replace('.visual', '.xml'))
+		wot.unpackXml(filename_visual, filename_visual+'.xml')
 	
-		filename_visual = filename_visual.replace('.visual', '.xml')
+		filename_visual = filename_visual+'.xml'
 	
 		tree = ET.parse(filename_visual)
 		root = tree.getroot()
@@ -219,7 +233,7 @@ def main(filename_primitive):
 						textures['diffuse'] = prop.find("Texture").text.strip()
 				group_textures[item.text.strip()] = textures
 			visual_textures.append(group_textures)
-		os.unlink(filename_visual)
+#		os.unlink(filename_visual)
 
 	tree = None
 	root = None

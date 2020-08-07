@@ -14,9 +14,17 @@
 *.rar
 *.primitives_processed
 *.visual_processed
+*.dds
+process.py
+uvexporter.py
+obj2vt.py
+p2vt.py
+*.png
+*.spec
+*.xml
+*.zip
 setup.py
 build
-dist
 
 #################
 ## Eclipse
@@ -213,7 +221,6 @@ $RECYCLE.BIN/
 # Packages
 *.egg
 *.egg-info
-dist/
 build/
 eggs/
 parts/
